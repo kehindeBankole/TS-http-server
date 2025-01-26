@@ -8,14 +8,26 @@ const server = net.createServer((socket) => {
     const request = data.toString();
     const path = request.split(" ")[1];
     const query = path.split("/")[2];
+    const headers = request.split("\r\n");
+    const userAgentHeader = headers.find((header) =>
+      header.toLowerCase().startsWith("user-agent:")
+    );
+    const userAgentValue = userAgentHeader
+      ? userAgentHeader.split(": ")[1]
+      : "";
+
     // const response = path === '/' ? 'HTTP/1.1 200 OK\r\n\r\n' : 'HTTP/1.1 404 Not Found\r\n\r\n';
     // socket.write(response);
-
+    console.log({ path, request });
     if (path === "/") {
       socket.write("HTTP/1.1 200 OK\r\n\r\n");
     } else if (path === `/echo/${query}`) {
       socket.write(
         `HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${query.length}\r\n\r\n${query}`
+      );
+    } else if (path === "/user-agent") {
+      socket.write(
+        `HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${userAgentValue.length}\r\n\r\n${userAgentValue}`
       );
     } else {
       socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
