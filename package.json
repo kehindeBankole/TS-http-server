@@ -9,6 +9,7 @@
     "@types/bun": "latest"
   },
   "dependencies": {
-    "fs": "^0.0.1-security"
+    "fs": "^0.0.1-security",
+    "zlib": "^1.0.5"
   }
 }

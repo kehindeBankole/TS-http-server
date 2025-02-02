@@ -1,6 +1,6 @@
 import * as net from "net";
 import * as fs from "fs";
-
+import * as zlib from "zlib";
 // You can use print statements as follows for debugging, they'll be visible when running tests.
 console.log("Logs from your program will appear here!");
 
@@ -34,16 +34,34 @@ const server = net.createServer((socket) => {
     console.log({ path, request });
     if (path === "/") {
       socket.write("HTTP/1.1 200 OK\r\n\r\n");
+      socket.end();
     } else if (path === `/echo/${query}`) {
-      let responseHeaders = `HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${query.length}\r\n`;
+      //  let responseHeaders = `HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${query.length}\r\n`;
 
-      // Add Content-Encoding header if the client supports gzip
       if (supportsGzip) {
-        responseHeaders += "Content-Encoding: gzip\r\n";
-      }
+       
+        zlib.gzip(query, (err, compressedData) => {
+          if (err) {
+            socket.write("HTTP/1.1 500 Internal Server Error\r\n\r\n");
+            return;
+          }
 
-      responseHeaders += `\r\n${query}`;
-      socket.write(responseHeaders);
+          // Send the response with gzip encoding
+          const responseHeaders = `HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: gzip\r\nContent-Length: ${compressedData.length}\r\n\r\n`;
+          socket.write(responseHeaders);
+          socket.write(compressedData);
+         socket.end();
+        });
+      } else {
+        // Send the response without compression
+        const responseHeaders = `HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${query.length}\r\n\r\n`;
+        socket.write(responseHeaders);
+        socket.write(query);
+       socket.end();
+      }
+    
+      // responseHeaders += `\r\n${query}`;
+      // socket.write(responseHeaders);
       // socket.write(
       //   `HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${query.length}\r\n\r\n${query}`
       // );
@@ -74,10 +92,11 @@ const server = net.createServer((socket) => {
           socket.write("HTTP/1.1 500 Internal Server Error\r\n\r\n");
         }
       }
+      socket.end();
     } else {
       socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
+      socket.end();
     }
-    socket.end();
   });
 
   socket.on("close", () => {
