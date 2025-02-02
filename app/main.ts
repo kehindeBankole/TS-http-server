@@ -19,15 +19,34 @@ const server = net.createServer((socket) => {
       ? userAgentHeader.split(": ")[1]
       : "";
 
+    const acceptEncodingHeader = headers.find((header) =>
+      header.toLowerCase().startsWith("accept-encoding:")
+    );
+
+    const acceptEncodingValue = acceptEncodingHeader
+      ? acceptEncodingHeader.split(": ")[1]
+      : "";
+
+    const supportsGzip = acceptEncodingValue.includes("gzip");
+
     // const response = path === '/' ? 'HTTP/1.1 200 OK\r\n\r\n' : 'HTTP/1.1 404 Not Found\r\n\r\n';
     // socket.write(response);
     console.log({ path, request });
     if (path === "/") {
       socket.write("HTTP/1.1 200 OK\r\n\r\n");
     } else if (path === `/echo/${query}`) {
-      socket.write(
-        `HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${query.length}\r\n\r\n${query}`
-      );
+      let responseHeaders = `HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${query.length}\r\n`;
+
+      // Add Content-Encoding header if the client supports gzip
+      if (supportsGzip) {
+        responseHeaders += "Content-Encoding: gzip\r\n";
+      }
+
+      responseHeaders += `\r\n${query}`;
+      socket.write(responseHeaders);
+      // socket.write(
+      //   `HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${query.length}\r\n\r\n${query}`
+      // );
     } else if (path === "/user-agent") {
       socket.write(
         `HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${userAgentValue.length}\r\n\r\n${userAgentValue}`
@@ -49,7 +68,7 @@ const server = net.createServer((socket) => {
         let directory: string = process.argv[3];
         let fileName: string = query;
         try {
-          fs.writeFileSync(`${directory}${fileName}`, body, 'utf8');
+          fs.writeFileSync(`${directory}${fileName}`, body, "utf8");
           socket.write("HTTP/1.1 201 Created\r\n\r\n");
         } catch (error) {
           socket.write("HTTP/1.1 500 Internal Server Error\r\n\r\n");
