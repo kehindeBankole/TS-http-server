@@ -7,6 +7,8 @@ console.log("Logs from your program will appear here!");
 const server = net.createServer((socket) => {
   socket.on("data", (data) => {
     const request = data.toString();
+    const body = request.split("\r\n\r\n")[1];
+    const method = request.split(" ")[0];
     const path = request.split(" ")[1];
     const query = path.split("/")[2];
     const headers = request.split("\r\n");
@@ -31,15 +33,27 @@ const server = net.createServer((socket) => {
         `HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${userAgentValue.length}\r\n\r\n${userAgentValue}`
       );
     } else if (path.startsWith("/files/")) {
-      let directory: string = process.argv[3];
-      let fileName: string = query;
-      try {
-        const content = fs.readFileSync(directory + fileName);
-        socket.write(
-          `HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: ${content.length}\r\n\r\n${content}`
-        );
-      } catch (error) {
-        socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
+      console.log({ method });
+      if (method === "GET") {
+        let directory: string = process.argv[3];
+        let fileName: string = query;
+        try {
+          const content = fs.readFileSync(directory + fileName);
+          socket.write(
+            `HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: ${content.length}\r\n\r\n${content}`
+          );
+        } catch (error) {
+          socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
+        }
+      } else if (method === "POST") {
+        let directory: string = process.argv[3];
+        let fileName: string = query;
+        try {
+          fs.writeFileSync(`${directory}${fileName}`, body, 'utf8');
+          socket.write("HTTP/1.1 201 Created\r\n\r\n");
+        } catch (error) {
+          socket.write("HTTP/1.1 500 Internal Server Error\r\n\r\n");
+        }
       }
     } else {
       socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
